@@ -1,8 +1,8 @@
 from account import Account
 
 class CheckingAccount(Account):
-    def __init__(self, account_number, account_holder, balance, pin, overdraft_limit=500):
-        super().__init__(account_number, account_holder, balance, pin)
+    def __init__(self, account_number, account_holder, balance, pin, account_type, overdraft_limit=500):
+        super().__init__(account_number, account_holder, balance, pin, account_type)
         self.overdraft_limit = overdraft_limit
 
 
@@ -17,7 +17,7 @@ class CheckingAccount(Account):
 
     
 
-my_account = CheckingAccount("123456789", "John Doe", 1000, "1234")
+my_account = CheckingAccount("123456789", "John Doe", 1000, "1234", "Current")
 print(f"Initial balance: ${my_account.get_balance()}")
 my_account.deposit(500, "1234")
 print(f"Balance after deposit: ${my_account.get_balance()}")

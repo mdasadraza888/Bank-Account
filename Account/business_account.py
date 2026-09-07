@@ -2,8 +2,8 @@ from account import Account
 from datetime import date, time
 
 class BusinessAcoount(Account):
-    def __init__(self, account_number, account_holder, balance, pin, company_name):
-        super().__init__(account_number, account_holder, balance, pin)
+    def __init__(self, account_number, account_holder, balance, pin, account_type, company_name):
+        super().__init__(account_number, account_holder, balance, pin, account_type)
         self.company_name = company_name
         self.transaction_fee = 2.50
         self.daily_withdrawal_limit = 50000.00
@@ -45,7 +45,7 @@ class BusinessAcoount(Account):
             self.total_withdrawan_today = 0.0
             self.last_date_reset = current_date
 
-b1 = BusinessAcoount("693258743", "Asad", 10000, "1234", "Apple_plus")
+b1 = BusinessAcoount("693258743", "Asad", 10000, "1234", "Apple_plus", "Business")
 b1.deposit(5000, '1234')
 print(b1.get_balance())
 b1.withdraw(4000, '1234')

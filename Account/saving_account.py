@@ -2,8 +2,8 @@ from account import Account
 from datetime import time, date, timedelta
 
 class SavingAccount(Account):
-    def __init__(self, account_number, account_holder, balance, pin, interest_rate=0.04):
-        super().__init__(account_number, account_holder, balance, pin)
+    def __init__(self, account_number, account_holder, balance, pin, account_type, interest_rate=0.04):
+        super().__init__(account_number, account_holder, balance, pin, account_type)
         self.interest_rate = interest_rate
         self.withdrawals_this_month = 0
         self.MAX_MONTHLY_WITHDRAWALS = 6
@@ -46,7 +46,7 @@ class SavingAccount(Account):
             self.withdrawals_this_month = 0
             self.day_of_last_withdrawal = None # Reset the last withdrawal date after resetting withdrawals
            
-saving_account = SavingAccount("987654321", "Jane Doe", 20000, "5678")
+saving_account = SavingAccount("987654321", "Jane Doe", 20000, "5678", "Saving")
 saving_account.deposit(1000, "5678")
 saving_account.withdraw(500, "5678")
 saving_account.withdraw(500, "5678")
