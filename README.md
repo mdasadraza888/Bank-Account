@@ -95,3 +95,91 @@ account.withdraw(500, "5678")
 account.apply_interest()
 
 Use code with caution.
+
+3. ## 💳 Checking Account Module (`CheckingAccount`)
+
+The `CheckingAccount` class manages standard, high-frequency daily spending transactions. It inherits foundational parameters from the core abstract `Account` layout but introduces custom overdraft parameters to handle temporary short-term client debt safely.
+
+### ✨ Key Features & Business Logic
+* **Flexible Balance Guardrails:** Unlike savings structures, transactions are not instantly declined if the balance drops to zero. Transactions are permitted to continue processing up into negative values until they hit a predefined financial ceiling.
+* **Overdraft Safety Enforcement:** Automatically calculates and verifies if requested withdrawal distributions exceed the combined total of the client's current baseline balance and their allocated credit line.
+* **Granular Input Validation:** Requires mandatory double-factor verification via user PIN inputs and restricts transaction execution on invalid (negative/zero) amounts.
+
+### ⚙️ Technical Blueprint
+
+| Attribute / Method | Type | Description |
+| :--- | :--- | :--- |
+| `overdraft_limit` | `float` | The maximum negative buffer capacity permitted for the client profile (Defaults to `$500.00`). |
+| `withdraw(amount, pin)` | `Method` | Overrides the abstract parent signature to validate thresholds and execute line-of-credit deductions. |
+
+### 🚀 Usage Example
+
+```python
+from accounts import CheckingAccount
+
+# Initialize a standard daily checking account with a default \$500 overdraft buffer
+user_checking = CheckingAccount(
+    account_number="CHK-88192", 
+    account_holder="Alex Rivera", 
+    balance=1200.00, 
+    pin="4321"
+)
+
+# 1. Standard valid withdrawal
+user_checking.withdraw(amount=200.00, pin="4321")
+# Output: "Withdrew \$200.00. Balance: \$1000.00"
+
+# 2. Leveraging the overdraft buffer limit
+user_checking.withdraw(amount=1300.00, pin="4321")
+# Output: "Withdrew \$1300.00. Balance: -\$300.00"
+
+# 3. Transaction blocked for breaching the maximum overdraft ceiling (-\$300 - \$300 exceeds -\$500)
+user_checking.withdraw(amount=300.00, pin="4321")
+# ValueError: "Insufficient funds (including overdraft)"
+```
+
+4. ## 🏢 Business Account Module (`BusinessAccount`)
+
+The `BusinessAccount` class handles large-scale operations for corporate clients. It prioritizes institutional security guardrails and monetization rules, supporting high-volume cash distributions while protecting the bank from commercial fraud through daily spending caps and automated transactional service fees.
+
+### ✨ Key Features & Business Logic
+* **Commercial Fee Structure:** Implements a fixed institutional processing fee (e.g., `$2.50`) on both withdrawals and deposits to simulate real-world corporate account management.
+* **Daily Anti-Fraud Caps:** Limits financial exposure by tracking total daily asset distribution. Transactions are automatically rejected if the cumulative total exceeds the predefined daily corporate threshold.
+* **Self-Healing Date Tracker:** Automatically monitors dates and resets the daily transaction log the moment a new calendar day begins, removing the need for a persistent background resource loop.
+
+### ⚙️ Technical Blueprint
+
+| Attribute / Method | Type | Description |
+| :--- | :--- | :--- |
+| `company_name` | `string` | The registered corporate legal entity name bound to the profile. |
+| `transaction_fee` | `float` | A fixed deduction rate applied to all financial transactions (Defaults to `$2.50`). |
+| `daily_withdrawal_limit` | `float` | The maximum cumulative funding cap authorized for 24 hours (Defaults to `$50,000.00`). |
+| `withdraw(amount, pin)` | `Method` | Overrides the abstract signature to run dual-factor PIN checks, verify daily capacity, and deduct total transactional costs. |
+| `deposit(amount, pin)` | `Method` | Overrides the shared baseline deposit routine to successfully inject assets while applying corporate processing deductions. |
+
+### 🚀 Usage Example
+
+```python
+from accounts import BusinessAccount
+
+# Initialize a commercial engine account for a corporate entity
+corp_account = BusinessAccount(
+    account_number="BUS-77291",
+    account_holder="Sarah Jenkins (CFO)",
+    balance=100000.00,
+    pin="8899",
+    company_name="Nexus Tech Solutions LLC"
+)
+
+# 1. Processing a business withdrawal (Applies fee: \$2.50)
+corp_account.withdraw(amount=5000.00, pin="8899")
+# Output: "Withdrew \$5000.00 (Fee: \$2.50). Balance: \$94997.50"
+
+# 2. Corporate deposit with automated processing deductions
+corp_account.deposit(amount=10000.00, pin="8899")
+# Output: "Deposited \$10000.00 (Fee: \$2.50). Balance: \$104995.00"
+
+# 3. Blocked execution due to crossing the daily corporate safety threshold (\$50k)
+corp_account.withdraw(amount=46000.00, pin="8899") 
+# ValueError: "Declined: Exceeds daily corporate withdrawal limit" (\$5,000 + \$46,000 > \$50,000)
+```
