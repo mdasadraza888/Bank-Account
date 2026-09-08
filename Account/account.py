@@ -2,11 +2,11 @@ from abc import ABC, abstractmethod
 
 class Account(ABC):
     def __init__(self, account_number, account_holder, balance, pin, account_type):
-        self.account_type = account_type
         self.account_number = account_number
         self.account_holder = account_holder
         self.__balance = balance
         self.__account_pin = pin
+        self.account_type = account_type
         
     @abstractmethod
     def withdraw(self, amount, pin):
