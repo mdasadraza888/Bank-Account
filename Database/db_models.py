@@ -23,7 +23,7 @@ class Account(Base):
 
 class SavingAccount(Account):
     __tablename__ = "saving_account"
-    saving_id = Column(Integer, ForeignKey("account.account_id"), primary_key=True)
+    saving_id = Column(Integer, ForeignKey("account.account_id", ondelete="CASCADE"), primary_key=True)
     account_interest = Column(Float, nullable=True, default=0.04)
     max_monthly_withdrawals = Column(Integer, default=6)
 
@@ -33,7 +33,7 @@ class SavingAccount(Account):
 
 class CheckingAccount(Account):
     __tablename__ = "checking_account"
-    checking_id = Column(Integer, ForeignKey("account.account_id"), primary_key=True)
+    checking_id = Column(Integer, ForeignKey("account.account_id", ondelete="CASCADE"), primary_key=True)
     overdraft_value = Column(Float, default=500.00)
 
     __mapper_args__ = {
@@ -42,7 +42,7 @@ class CheckingAccount(Account):
 
 class BusinessAccount(Account):
     __tablename__ = "business_account"
-    business_id = Column(Integer, ForeignKey("account.account_id"), primary_key=True)
+    business_id = Column(Integer, ForeignKey("account.account_id", ondelete="CASCADE"), primary_key=True)
     company_name = Column(String(20), nullable=False)
     transaction_fee = Column(Float, default=2.50)
     daily_withdrawal_limit = Column(Float, default=50000.00)
@@ -51,4 +51,4 @@ class BusinessAccount(Account):
         "polymorphic_identity": "business"
     }
 
-# Base.metadata.create_all(engine)
+Base.metadata.create_all(engine)
