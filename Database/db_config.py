@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, insert, update, delete, select
 from sqlalchemy.orm import sessionmaker
-from db_models import Base, Account, SavingAccount, CheckingAccount, BusinessAccount
+from Database.db_models import Base, Account, SavingAccount, CheckingAccount, BusinessAccount
+import random
 
 engine = create_engine("postgresql://postgres:asad888@127.0.0.1:5432/Bank Account")
 
@@ -93,5 +94,18 @@ def update_account(account_no: str, updated_data: dict):
     except Exception as e:
         session.rollback()
         return {'status': "Error", "message": {str(e)}}
+    finally:
+        session.close()
+
+def create_account_no() -> str:
+    session = SessionLocal()
+    try:
+        while True:
+            random_no = "".join([str(random.randint(0, 9)) for _ in range(9)])
+
+            exists = session.query(Account).filter(Account.account_no == random_no).first()
+
+            if not exists:
+                return random_no
     finally:
         session.close()
