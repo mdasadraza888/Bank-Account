@@ -1,10 +1,11 @@
 from fastapi import FastAPI, HTTPException
 from Database.db_config import update_account, insert_func, delete_func, get_account, create_account_no, SessionLocal
 from Database.db_models import Account
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from core.checking_account import CheckingAccount
 from core.saving_account import SavingAccount
 from core.business_account import BusinessAcoount
+from typing import Optional
 
 
 class AccountResponse(BaseModel):
@@ -23,11 +24,21 @@ class TransactionRequest(BaseModel):
     amount: float
     account_pin: str
 
+class AccountUpdateRequest(BaseModel):
+    # All field marked optional so the user can choose to change only one element
+    account_holder: Optional[str] = Field(None, min_length=2, max_length=50)
+    account_pin: Optional[str] = Field(None, min_length=4, max_length=4)
+
+    # custom administrative child fields
+    overdraft_value: Optional[float] = None
+    company_name: Optional[str] = None
+    daily_withdrawal_limit: Optional[float] = None
+
 
 app = FastAPI()
 
 
-@app.post("/account", response_model=AccountResponse)
+@app.post("/create-account", response_model=AccountResponse)
 async def create_account(account: AccountRequest):
     gen_account_no = create_account_no()
 
@@ -48,7 +59,62 @@ async def create_account(account: AccountRequest):
         "account_type": account.account_type
     }
 
-@app.get("/account/withdraw")
+@app.delete("/delete-account/{account_no}")
+async def delete_account(account_no: str):
+
+    result = delete_func(account_no=account_no)
+
+    if result.get('status') == 'Error':
+        raise HTTPException(status_code=404, detail=result.get("message"))
+
+    return {"status": "success", "message": result.get("message")}
+
+@app.patch("/update-account/{account_no}", response_model=AccountResponse)
+async def modify_account_profile(account_no: str, payload: AccountUpdateRequest):
+
+    clean_data = payload.model_dump(exclude_unset=True)
+
+    if not clean_data:
+        raise HTTPException(status_code=404, detail="No valid updates attributed were supplied!")
+
+    result = update_account(account_no=account_no, updated_data=clean_data)
+
+    if result.get("status") == "Error":
+        raise HTTPException(status_code=404, detail=result.get("message"))
+
+    return {
+        "account_no": result.account_no, 
+        "account_holder": payload.account_holder,
+        "account_type": result.account_type
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@app.post("/account/withdraw")
 async def process_api_withdrawal(payload: TransactionRequest):
     session = SessionLocal()
     try:
@@ -58,7 +124,7 @@ async def process_api_withdrawal(payload: TransactionRequest):
             raise HTTPException(status_code=404, detail="Account number not found in our central directory.")
 
         if db_record.account_type == 'checking':
-            active_logic_object=Account(
+            active_logic_object=CheckingAccount(
                 account_no = db_record.account_no,
                 account_holder=db_record.account_holder,
                 account_balance=db_record.account_balance,
@@ -86,6 +152,14 @@ async def process_api_withdrawal(payload: TransactionRequest):
         success_message = active_logic_object.withdraw(payload.amount, payload.account_pin)
 
         db_record.account_balance = active_logic_object.get_balance()
-        
+        session.commit()
+
+        return {"status": "success", "message": success_message}
+    except ValueError as domain_error:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=str(domain_error))
+    except Exception as server_error:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=f"Internal server error {str(server_error)}")
     finally:
-        pass
+        session.close()

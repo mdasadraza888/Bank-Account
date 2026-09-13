@@ -90,7 +90,8 @@ def update_account(account_no: str, updated_data: dict):
                 setattr(db_account, key, value)
 
         session.commit()
-        return {'status': "Success", "message": "Ledger details updated successfully"}
+        # return {'status': "Success", "message": "Ledger details updated successfully"}
+        return db_account
     except Exception as e:
         session.rollback()
         return {'status': "Error", "message": {str(e)}}

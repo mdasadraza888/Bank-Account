@@ -1,4 +1,4 @@
-from account import Account
+from core.account import Account
 from datetime import date, time
 
 class BusinessAcoount(Account):
@@ -45,8 +45,8 @@ class BusinessAcoount(Account):
             self.total_withdrawan_today = 0.0
             self.last_date_reset = current_date
 
-b1 = BusinessAcoount("693258743", "Asad", 10000, "1234", "Apple_plus", "Business")
-b1.deposit(5000, '1234')
-print(b1.get_balance())
-b1.withdraw(4000, '1234')
-print(b1.get_balance())
+# b1 = BusinessAcoount("693258743", "Asad", 10000, "1234", "Apple_plus", "Business")
+# b1.deposit(5000, '1234')
+# print(b1.get_balance())
+# b1.withdraw(4000, '1234')
+# print(b1.get_balance())

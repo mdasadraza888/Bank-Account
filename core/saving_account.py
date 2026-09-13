@@ -1,4 +1,4 @@
-from account import Account
+from core.account import Account
 from datetime import time, date, timedelta
 
 class SavingAccount(Account):
@@ -46,16 +46,16 @@ class SavingAccount(Account):
             self.withdrawals_this_month = 0
             self.day_of_last_withdrawal = None # Reset the last withdrawal date after resetting withdrawals
            
-saving_account = SavingAccount("987654321", "Jane Doe", 20000, "5678", "Saving")
-saving_account.deposit(1000, "5678")
-saving_account.withdraw(500, "5678")
-saving_account.withdraw(500, "5678")
-saving_account.withdraw(500, "5678")
-saving_account.withdraw(500, "5678")
-saving_account.withdraw(500, "5678")
-saving_account.withdraw(500, "5678")
-print(f"Balance after withdrawal: ${saving_account.get_balance()}")
+# saving_account = SavingAccount("987654321", "Jane Doe", 20000, "5678", "Saving")
+# saving_account.deposit(1000, "5678")
+# saving_account.withdraw(500, "5678")
+# saving_account.withdraw(500, "5678")
+# saving_account.withdraw(500, "5678")
+# saving_account.withdraw(500, "5678")
+# saving_account.withdraw(500, "5678")
+# saving_account.withdraw(500, "5678")
+# print(f"Balance after withdrawal: ${saving_account.get_balance()}")
 
-saving_account.withdraw(10000, "5678")
-saving_account.withdraw(500, "5678")
-print(saving_account.get_balance())
+# saving_account.withdraw(10000, "5678")
+# saving_account.withdraw(500, "5678")
+# print(saving_account.get_balance())

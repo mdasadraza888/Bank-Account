@@ -1,4 +1,4 @@
-from account import Account
+from core.account import Account
 
 class CheckingAccount(Account):
     def __init__(self, account_number, account_holder, balance, pin, account_type, overdraft_limit=500):
@@ -17,9 +17,9 @@ class CheckingAccount(Account):
 
     
 
-my_account = CheckingAccount("123456789", "John Doe", 1000, "1234", "Current")
-print(f"Initial balance: ${my_account.get_balance()}")
-my_account.deposit(500, "1234")
-print(f"Balance after deposit: ${my_account.get_balance()}")
-my_account.withdraw(200, "1234")
-print(f"Balance after withdrawal: ${my_account.get_balance()}")
+# my_account = CheckingAccount("123456789", "John Doe", 1000, "1234", "Current")
+# print(f"Initial balance: ${my_account.get_balance()}")
+# my_account.deposit(500, "1234")
+# print(f"Balance after deposit: ${my_account.get_balance()}")
+# my_account.withdraw(200, "1234")
+# print(f"Balance after withdrawal: ${my_account.get_balance()}")
