@@ -30,7 +30,7 @@ class BusinessAcoount(Accounts):
 
         super()._change_balance(-total_cost)
         self.total_withdrawan_today += amount
-        return f"Withdrew ${amount} (fee {self.transaction_fee}). Balance{super().get_balance()}"
+        return f"Withdraw ${amount} (fee {self.transaction_fee}). Balance{super().get_balance()}"
 
     def deposit(self, amount, pin):
         super().deposit(amount, pin)

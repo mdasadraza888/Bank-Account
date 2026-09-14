@@ -6,7 +6,7 @@ class CheckingAccount(Accounts):
         self.overdraft_limit = overdraft_limit
 
 
-    def withdraw(self, amount, pin):
+    def withdraw(self, amount, pin) -> None:
         if pin != super().account_pin:
             raise ValueError("Incorrect PIN")
         if amount > super().get_balance() + self.overdraft_limit:
