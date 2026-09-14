@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-class Account(ABC):
+class Accounts(ABC):
     def __init__(self, account_number, account_holder, balance, pin, account_type):
         self.account_number = account_number
         self.account_holder = account_holder

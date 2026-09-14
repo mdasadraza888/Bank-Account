@@ -5,11 +5,12 @@ from pydantic import BaseModel, Field
 from core.checking_account import CheckingAccount
 from core.saving_account import SavingAccount
 from core.business_account import BusinessAcoount
+from core.account import Accounts
 from typing import Optional
 
 
 class AccountResponse(BaseModel):
-    account_no: int
+    account_no: str
     account_holder: str
     account_type: str
 
@@ -39,7 +40,7 @@ app = FastAPI()
 
 
 @app.post("/create-account", response_model=AccountResponse)
-async def create_account(account: AccountRequest):
+async def create_account(account: AccountRequest) -> AccountResponse:
     gen_account_no = create_account_no()
 
     db_result = insert_func(
@@ -54,13 +55,13 @@ async def create_account(account: AccountRequest):
         raise HTTPException(status_code=404, detail=db_result.get("message"))
 
     return {
-        "account_no": gen_account_no,
+        "account_no": int(gen_account_no),
         "account_holder": account.account_holder,
         "account_type": account.account_type
     }
 
 @app.delete("/delete-account/{account_no}")
-async def delete_account(account_no: str):
+async def delete_account(account_no: str) -> str:
 
     result = delete_func(account_no=account_no)
 
@@ -70,7 +71,7 @@ async def delete_account(account_no: str):
     return {"status": "success", "message": result.get("message")}
 
 @app.patch("/update-account/{account_no}", response_model=AccountResponse)
-async def modify_account_profile(account_no: str, payload: AccountUpdateRequest):
+async def modify_account_profile(account_no: str, payload: AccountUpdateRequest) -> AccountResponse:
 
     clean_data = payload.model_dump(exclude_unset=True)
 
@@ -88,34 +89,22 @@ async def modify_account_profile(account_no: str, payload: AccountUpdateRequest)
         "account_type": result.account_type
     }
 
+@app.get("/account/{account_no}", response_model=AccountResponse)
+async def get_account_profile(account_no: str) -> AccountResponse:
 
+    account = get_account(account_no=account_no)
 
+    if not account:
+        raise HTTPException(status_code=404, detail="Sorry Account no not found.")
 
+    return {
+        "account_no": account.account_no,
+        "account_holder": account.account_holder,
+        "account_type": account.account_type
+    }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-@app.post("/account/withdraw")
-async def process_api_withdrawal(payload: TransactionRequest):
+@app.patch("/account/withdraw/{account_no}")
+async def process_api_withdrawal(payload: TransactionRequest) -> str:
     session = SessionLocal()
     try:
         db_record = session.query(Account).filter(Account.account_no == payload.account_no).first()
@@ -161,5 +150,48 @@ async def process_api_withdrawal(payload: TransactionRequest):
     except Exception as server_error:
         session.rollback()
         raise HTTPException(status_code=404, detail=f"Internal server error {str(server_error)}")
+    finally:
+        session.close()
+
+@app.patch("/account/deposit/{account_no}")
+async def process_api_deposit(payload: TransactionRequest) -> str:
+    session = SessionLocal()
+    try:
+        db_account = session.query(Account).filter(Account.account_no == payload.account_no).first()
+
+        if not db_account:
+            raise HTTPException(status_code=404, detail="Sorry, Account does not exist.")
+
+        if db_account.account_type == 'business':
+            active_logic_object=BusinessAcoount(
+                account_no=db_account.account_no,
+                account_holder=db_account.account_holder,
+                account_balance=db_account.account_balance,
+                account_pin=db_account.account_pin,
+                company_name=getattr(db_account, 'company_name', 'Commercial LLC')
+            )
+        elif db_account.account_type in ('checking', 'savings'):
+            active_logic_object=Account(
+                account_no=db_account.account_no,
+                account_holder=db_account.account_holder,
+                account_balance=db_account.account_balance,
+                account_pin=db_account.account_pin,
+                account_type=db_account.account_type
+            )
+        else:
+            raise HTTPException(status_code=404, detail="Unsupported polymorphic account type.")
+
+        success_message = active_logic_object.deposit(amount=payload.amount, pin=payload.account_pin) # it works on backend logic
+
+        db_account.account_balance = active_logic_object.get_balance() # it change balance into database
+        session.commit()
+
+        return {'status': 'success', 'message': success_message}
+    except ValueError as domain_error:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=str(domain_error))
+    except Exception as server_error:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=str(server_error))
     finally:
         session.close()

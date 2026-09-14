@@ -1,7 +1,7 @@
-from core.account import Account
+from core.account import Accounts
 from datetime import date, time
 
-class BusinessAcoount(Account):
+class BusinessAcoount(Accounts):
     def __init__(self, account_number, account_holder, balance, pin, account_type, company_name):
         super().__init__(account_number, account_holder, balance, pin, account_type)
         self.company_name = company_name

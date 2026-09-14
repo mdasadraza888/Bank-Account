@@ -1,7 +1,7 @@
-from core.account import Account
+from core.account import Accounts
 from datetime import time, date, timedelta
 
-class SavingAccount(Account):
+class SavingAccount(Accounts):
     def __init__(self, account_number, account_holder, balance, pin, account_type, interest_rate=0.04):
         super().__init__(account_number, account_holder, balance, pin, account_type)
         self.interest_rate = interest_rate
