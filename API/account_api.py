@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import APIRouter, HTTPException
 from Database.db_config import update_account, insert_func, delete_func, get_account, create_account_no, SessionLocal
 from Database.db_models import Account
 from pydantic import BaseModel, Field
@@ -7,7 +7,7 @@ from core.saving_account import SavingAccount
 from core.business_account import BusinessAcoount
 from core.account import Accounts
 from typing import Optional
-
+from core.atm import Atm
 
 class AccountResponse(BaseModel):
     account_no: str
@@ -35,8 +35,18 @@ class AccountUpdateRequest(BaseModel):
     company_name: Optional[str] = None
     daily_withdrawal_limit: Optional[float] = None
 
+class AtmWithdrawRequest(BaseModel):
+    account_no: str
+    entered_pin: str = Field(..., min_length=4, max_length=4)
+    amount: float = Field(..., gt=0.0)
+    machine_id: str = "ATM-MAIN-BRANCH-01"
 
-app = FastAPI()
+class AtmTransactionResponse(BaseModel):
+    status: str
+    allocated_receipt: str
+    updated_balance: float
+
+app = APIRouter(prefix="/accounts", tags=["Banking Ledger Operations"])
 
 
 @app.post("/create-account", response_model=AccountResponse)
@@ -103,7 +113,7 @@ async def get_account_profile(account_no: str) -> AccountResponse:
         "account_type": account.account_type
     }
 
-@app.patch("/account/withdraw/{account_no}")
+@app.patch("/account/withdraw")
 async def process_api_withdrawal(payload: TransactionRequest) -> str:
     session = SessionLocal()
     try:
@@ -153,7 +163,7 @@ async def process_api_withdrawal(payload: TransactionRequest) -> str:
     finally:
         session.close()
 
-@app.patch("/account/deposit/{account_no}")
+@app.patch("/account/deposit/")
 async def process_api_deposit(payload: TransactionRequest) -> str:
     session = SessionLocal()
     try:
@@ -194,4 +204,81 @@ async def process_api_deposit(payload: TransactionRequest) -> str:
         session.rollback()
         raise HTTPException(status_code=404, detail=str(server_error))
     finally:
+        session.close()
+
+@app.get("/account/{account_no}/balance")
+async def retrieve_account_balance(account_no: str) -> float:
+
+    db_account = get_account(account_no=account_no)
+
+    if not db_account:
+        raise HTTPException(status_code=404, detail="Account not founded.")
+
+    return db_account.account_balance
+
+
+@app.post("/ATM/withdraw/", response_model=AtmTransactionResponse)
+async def withdraw_money(payload: AtmWithdrawRequest) -> AtmTransactionResponse:
+    session = SessionLocal()
+    try:
+        db_account = get_account(account_no=payload.account_no)
+
+        if not db_account:
+            raise HTTPException(status_code=404, detail="Account does not exist")
+
+        hardware_atm = Atm(machine_id=payload.machine_id, machine_cash_inventory=50000.00)
+
+        is_authenticate = hardware_atm.authenticate_user(account_obj=db_account, entered_pin=payload.entered_pin)
+
+        if not is_authenticate:
+            raise HTTPException(status_code=404, detail="ATM Error: Access Denied. Invalid PIN entry")
+
+        if db_account.account_type == 'checking':
+            active_account_logic = CheckingAccount(
+                account_number=db_account.account_no,
+                account_holder=db_account.account_holder,
+                account_balance=db_account.account_balance,
+                account_pin=db_account.account_pin
+            )
+        elif db_account.account_type == 'savings':
+            active_account_logic=SavingAccount(
+                account_number=db_account.account_no,
+                account_holder=db_account.account_holder,
+                account_balance=db_account.account_balance,
+                account_pin=db_account.account_pin
+            )
+        elif db_account.account_id == 'business':
+            active_account_logic=BusinessAcoount(
+                account_number=db_account.account_no,
+                account_holder=db_account.account_holder,
+                account_balance=db_account.account_balance,
+                account_pin=db_account.account_pin,
+                company_name=getattr(db_account, 'company_name', 'crop')
+            )
+        else:
+            raise HTTPException(status_code=404, detail="ATM Error: unrecognized card allocation schema.")
+
+        hardware_atm.current_session_account = active_account_logic
+        receipt_msg = hardware_atm.process_withdraw(amount=payload.amount, pin=payload.entered_pin)
+
+        if 'Failed' in receipt_msg:
+            raise HTTPException(status_code=404, detail=receipt_msg)
+
+        db_account.account_balance = active_account_logic.get_balance()
+        session.add(db_account)
+        session.commit()
+
+        return {
+            "status": "success",
+            "allocated_receipt": f"Thank you for using our ATM network. {receipt_msg}",
+            "updated_balance": active_account_logic.get_balance()
+        }
+    except ValueError as domain_error:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=str(domain_error))
+    except Exception as server_error:
+        session.rollback()
+        raise HTTPException(status_code=404, detail=f"Internal ledger crash: {str(server_error)}")
+    finally:
+        hardware_atm.logout()
         session.close()

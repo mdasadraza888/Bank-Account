@@ -47,7 +47,7 @@ def insert_func(account_no: str, account_holder: str, account_balance: float, ac
         return {'status': 'Success', "message": f"Your {target_type} has been created with ID: {new_account.account_id}"}
     except Exception as e:
         session.rollback()
-        return {'status': 'Error', "message": "Database execution failed: {e}"}
+        return {'status': 'Error', "message": f"Database execution failed: {str(e)}"}
     finally:
         session.close()
 

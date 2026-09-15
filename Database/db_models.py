@@ -50,5 +50,3 @@ class BusinessAccount(Account):
     __mapper_args__ = {
         "polymorphic_identity": "business"
     }
-
-Base.metadata.create_all(engine)

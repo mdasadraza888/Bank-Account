@@ -1,4 +1,4 @@
-from account import Accounts
+from core.account import Accounts
 
 class Atm():
     def __init__(self, atm_id, initial_amount = 50000.00):
@@ -32,6 +32,6 @@ class Atm():
         except ValueError as e:
             return f"Transaction Failed: {str(e)}"
 
-    def logout(self):
+    def logout(self) -> None:
         if self.current_session_account:
             self.current_session_account = None
