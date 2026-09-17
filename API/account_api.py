@@ -8,22 +8,33 @@ from core.business_account import BusinessAcoount
 from core.account import Accounts
 from typing import Optional
 from core.atm import Atm
+from enum import Enum
+
+class AccountType(str, Enum):
+    checking = "checking"
+    savings = "savings"
+    business = "business"
 
 class AccountResponse(BaseModel):
     account_no: str
     account_holder: str
-    account_type: str
+    account_type: AccountType
 
 class AccountRequest(BaseModel):
     account_holder: str
-    account_balance: float
-    account_pin: str
-    account_type: str
+    account_balance: float = Field(..., gt=0)
+    account_pin: str = Field(..., min_length=4, max_length=4)
+    account_type: AccountType
+    company_name: Optional[str]
 
 class TransactionRequest(BaseModel):
     account_no: str
-    amount: float
+    amount: float = Field(..., gt=0.0)
     account_pin: str
+
+class TransactionResponse(BaseModel):
+    status: str
+    message: str
 
 class AccountUpdateRequest(BaseModel):
     # All field marked optional so the user can choose to change only one element
@@ -58,20 +69,21 @@ async def create_account(account: AccountRequest) -> AccountResponse:
         account_holder=account.account_holder, 
         account_balance=account.account_balance, 
         account_pin=account.account_pin, 
-        account_type=account.account_type
+        account_type=account.account_type,
+        company_name=account.company_name
     )
 
     if db_result.get("status") == "Error":
         raise HTTPException(status_code=404, detail=db_result.get("message"))
 
     return {
-        "account_no": int(gen_account_no),
+        "account_no": gen_account_no,
         "account_holder": account.account_holder,
         "account_type": account.account_type
     }
 
 @app.delete("/delete-account/{account_no}")
-async def delete_account(account_no: str) -> str:
+async def delete_account(account_no: str) -> dict:
 
     result = delete_func(account_no=account_no)
 
@@ -90,12 +102,12 @@ async def modify_account_profile(account_no: str, payload: AccountUpdateRequest)
 
     result = update_account(account_no=account_no, updated_data=clean_data)
 
-    if result.get("status") == "Error":
+    if isinstance(result, dict) and result.get("status") == "Error":
         raise HTTPException(status_code=404, detail=result.get("message"))
 
     return {
         "account_no": result.account_no, 
-        "account_holder": payload.account_holder,
+        "account_holder": result.account_holder,
         "account_type": result.account_type
     }
 
@@ -113,8 +125,8 @@ async def get_account_profile(account_no: str) -> AccountResponse:
         "account_type": account.account_type
     }
 
-@app.patch("/account/withdraw")
-async def process_api_withdrawal(payload: TransactionRequest) -> str:
+@app.patch("/account/withdraw", response_model=TransactionResponse)
+async def process_api_withdrawal(payload: TransactionRequest) -> TransactionResponse:
     session = SessionLocal()
     try:
         db_record = session.query(Account).filter(Account.account_no == payload.account_no).first()
@@ -128,6 +140,7 @@ async def process_api_withdrawal(payload: TransactionRequest) -> str:
                 account_holder=db_record.account_holder,
                 account_balance=db_record.account_balance,
                 account_pin=db_record.account_pin,
+                account_type=db_record.account_type,
                 overdraft_limit=getattr(db_record, 'overdraft_value', 500.00)
             )
         elif db_record.account_type == 'savings':
@@ -136,6 +149,7 @@ async def process_api_withdrawal(payload: TransactionRequest) -> str:
                 account_holder=db_record.account_holder,
                 account_balance=db_record.account_balance,
                 account_pin=db_record.account_pin,
+                account_type=db_record.account_type
             )
         elif db_record.account_type == 'business':
             active_logic_object=BusinessAcoount(
@@ -143,6 +157,7 @@ async def process_api_withdrawal(payload: TransactionRequest) -> str:
                 account_holder=db_record.account_holder,
                 account_balance=db_record.account_balance,
                 account_pin=db_record.account_pin,
+                account_type=db_record.account_type,
                 company_name=getattr(db_record, 'company_name', 'Commercial LLC')
             )
         else:
@@ -157,9 +172,12 @@ async def process_api_withdrawal(payload: TransactionRequest) -> str:
     except ValueError as domain_error:
         session.rollback()
         raise HTTPException(status_code=404, detail=str(domain_error))
+    except HTTPException:
+        session.rollback()
+        raise
     except Exception as server_error:
         session.rollback()
-        raise HTTPException(status_code=404, detail=f"Internal server error {str(server_error)}")
+        raise HTTPException(status_code=404, detail=str(server_error))
     finally:
         session.close()
 
@@ -173,27 +191,37 @@ async def process_api_deposit(payload: TransactionRequest) -> str:
             raise HTTPException(status_code=404, detail="Sorry, Account does not exist.")
 
         if db_account.account_type == 'business':
-            active_logic_object=BusinessAcoount(
-                account_no=db_account.account_no,
+            active_logic_object = BusinessAcoount(
+                account_number=db_account.account_no,
                 account_holder=db_account.account_holder,
-                account_balance=db_account.account_balance,
-                account_pin=db_account.account_pin,
+                balance=db_account.account_balance,
+                pin=db_account.account_pin,
+                account_type=db_account.account_type,
                 company_name=getattr(db_account, 'company_name', 'Commercial LLC')
             )
-        elif db_account.account_type in ('checking', 'savings'):
-            active_logic_object=Account(
-                account_no=db_account.account_no,
+        elif db_account.account_type == 'checking':
+            active_logic_object = CheckingAccount(
+                account_number=db_account.account_no,
                 account_holder=db_account.account_holder,
-                account_balance=db_account.account_balance,
-                account_pin=db_account.account_pin,
-                account_type=db_account.account_type
+                balance=db_account.account_balance,
+                pin=db_account.account_pin,
+                account_type=db_account.account_type,
+                overdraft_limit=getattr(db_account, 'overdraft_value', 500.00)
+            )
+        elif db_account.account_type == 'savings':
+            active_logic_object = SavingAccount(
+                account_number=db_account.account_no,
+                account_holder=db_account.account_holder,
+                balance=db_account.account_balance,
+                pin=db_account.account_pin,
+                account_type=db_account.account_type,
             )
         else:
             raise HTTPException(status_code=404, detail="Unsupported polymorphic account type.")
 
-        success_message = active_logic_object.deposit(amount=payload.amount, pin=payload.account_pin) # it works on backend logic
+        success_message = active_logic_object.deposit(amount=payload.amount, pin=payload.account_pin)
 
-        db_account.account_balance = active_logic_object.get_balance() # it change balance into database
+        db_account.account_balance = active_logic_object.get_balance()
         session.commit()
 
         return {'status': 'success', 'message': success_message}
@@ -220,13 +248,14 @@ async def retrieve_account_balance(account_no: str) -> float:
 @app.post("/ATM/withdraw/", response_model=AtmTransactionResponse)
 async def withdraw_money(payload: AtmWithdrawRequest) -> AtmTransactionResponse:
     session = SessionLocal()
+    hardware_atm = None
     try:
         db_account = get_account(account_no=payload.account_no)
 
         if not db_account:
             raise HTTPException(status_code=404, detail="Account does not exist")
 
-        hardware_atm = Atm(machine_id=payload.machine_id, machine_cash_inventory=50000.00)
+        hardware_atm = Atm(atm_id=payload.machine_id, machine_cash_inventory=50000.00)
 
         is_authenticate = hardware_atm.authenticate_user(account_obj=db_account, entered_pin=payload.entered_pin)
 
@@ -237,23 +266,27 @@ async def withdraw_money(payload: AtmWithdrawRequest) -> AtmTransactionResponse:
             active_account_logic = CheckingAccount(
                 account_number=db_account.account_no,
                 account_holder=db_account.account_holder,
-                account_balance=db_account.account_balance,
-                account_pin=db_account.account_pin
+                balance=db_account.account_balance,
+                pin=db_account.account_pin,
+                account_type=db_account.account_type,
+                overdraft_limit=getattr(db_account, 'overdraft_value', 500.00)
             )
         elif db_account.account_type == 'savings':
-            active_account_logic=SavingAccount(
+            active_account_logic = SavingAccount(
                 account_number=db_account.account_no,
                 account_holder=db_account.account_holder,
-                account_balance=db_account.account_balance,
-                account_pin=db_account.account_pin
+                balance=db_account.account_balance,
+                pin=db_account.account_pin,
+                account_type=db_account.account_type,
             )
-        elif db_account.account_id == 'business':
-            active_account_logic=BusinessAcoount(
+        elif db_account.account_type == 'business':
+            active_account_logic = BusinessAcoount(
                 account_number=db_account.account_no,
                 account_holder=db_account.account_holder,
-                account_balance=db_account.account_balance,
-                account_pin=db_account.account_pin,
-                company_name=getattr(db_account, 'company_name', 'crop')
+                balance=db_account.account_balance,
+                pin=db_account.account_pin,
+                account_type=db_account.account_type,
+                company_name=getattr(db_account, 'company_name', 'Commercial LLC')
             )
         else:
             raise HTTPException(status_code=404, detail="ATM Error: unrecognized card allocation schema.")
@@ -276,9 +309,13 @@ async def withdraw_money(payload: AtmWithdrawRequest) -> AtmTransactionResponse:
     except ValueError as domain_error:
         session.rollback()
         raise HTTPException(status_code=404, detail=str(domain_error))
+    except HTTPException:
+        session.rollback()
+        raise
     except Exception as server_error:
         session.rollback()
         raise HTTPException(status_code=404, detail=f"Internal ledger crash: {str(server_error)}")
     finally:
-        hardware_atm.logout()
+        if hardware_atm is not None:
+            hardware_atm.logout()
         session.close()

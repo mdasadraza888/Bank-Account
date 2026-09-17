@@ -1,25 +1,25 @@
 from core.account import Accounts
 
+
 class CheckingAccount(Accounts):
-    def __init__(self, account_number, account_holder, balance, pin, account_type, overdraft_limit=500):
-        super().__init__(account_number, account_holder, balance, pin, account_type)
+    def __init__(self, account_number=None, account_holder=None, balance=0.0, pin=None, account_type="checking", overdraft_limit=500.0, **kwargs):
+        super().__init__(
+            account_number=account_number,
+            account_holder=account_holder,
+            balance=balance,
+            pin=pin if pin is not None else kwargs.get("account_pin"),
+            account_type=account_type or kwargs.get("account_type", "checking"),
+            **kwargs,
+        )
         self.overdraft_limit = overdraft_limit
 
-
-    def withdraw(self, amount, pin) -> None:
+    def withdraw(self, amount, pin) -> str:
         if pin != super().account_pin:
             raise ValueError("Incorrect PIN")
-        if amount > super().get_balance() + self.overdraft_limit:
-            raise ValueError("Insufficient funds, including overdraft limit")
         if amount <= 0:
             raise ValueError("Withdrawal amount must be positive")
+        if amount > super().get_balance() + self.overdraft_limit:
+            raise ValueError("Insufficient funds, including overdraft limit")
+
         super()._change_balance(-amount)
-
-    
-
-# my_account = CheckingAccount("123456789", "John Doe", 1000, "1234", "Current")
-# print(f"Initial balance: ${my_account.get_balance()}")
-# my_account.deposit(500, "1234")
-# print(f"Balance after deposit: ${my_account.get_balance()}")
-# my_account.withdraw(200, "1234")
-# print(f"Balance after withdrawal: ${my_account.get_balance()}")
+        return f"Withdrew ${amount}. Balance: ${super().get_balance()}"

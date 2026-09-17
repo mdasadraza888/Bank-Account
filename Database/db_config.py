@@ -7,7 +7,7 @@ engine = create_engine("postgresql://postgres:asad888@127.0.0.1:5432/Bank Accoun
 
 SessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=engine)
 
-def insert_func(account_no: str, account_holder: str, account_balance: float, account_pin: str, account_type: str, company_name: str = None):
+def insert_func(account_no: str, account_holder: str, account_balance: float, account_pin: str, account_type: str, company_name: str):
     session = SessionLocal()
 
     target_type = account_type.strip().lower()
@@ -30,12 +30,12 @@ def insert_func(account_no: str, account_holder: str, account_balance: float, ac
             )
         elif target_type.startswith('b'):
             new_account = BusinessAccount(
-                company_name = company_name,
                 account_no = str(account_no).strip(),
                 account_holder = account_holder,
                 account_balance = float(account_balance),
                 account_pin = account_pin,
-                account_type = account_type
+                account_type = account_type,
+                company_name = company_name
             )
         else:
             raise ValueError(f"Account type category '{account_type} is unsporrted.")
@@ -55,7 +55,8 @@ def insert_func(account_no: str, account_holder: str, account_balance: float, ac
 def delete_func(account_no: str):
     session = SessionLocal()
     try:
-        db_account = session.query(Account).filter(Account.account_no == str(account_no).strip()).first()
+        account_no = account_no.strip()
+        db_account = session.query(Account).filter(Account.account_no == account_no).first()
 
         if not db_account:
             return {'status': "Error", "message": "Target account no does not exist."}
@@ -65,7 +66,7 @@ def delete_func(account_no: str):
         return {'status': "Success", "message": "Account fully purged from database tables."}
     except Exception as e:
         session.rollback()
-        return {'status': "Error", "message": {str(e)}}
+        return {'status': "Error", "message": str(e)}
     finally:
         session.close()
 
@@ -80,21 +81,27 @@ def get_account(account_no: str):
 def update_account(account_no: str, updated_data: dict):
     session = SessionLocal()
     try:
-        db_account = session.query(Account).filter(Account.account_no == str(account_no).strip()).first()
+        account_no = account_no.strip()
+        db_account = session.query(Account).filter(Account.account_no == account_no).first()
 
         if not db_account:
             return {"status": 'Error', "message": "Account no not found"}
 
+        updated=False
         for key, value in updated_data.items():
             if hasattr(db_account, key) and value is not None:
                 setattr(db_account, key, value)
+                updated=True
+
+        if not updated:
+            return {"status": "Error", "message": "No valid fields were provided for update."}
 
         session.commit()
-        # return {'status': "Success", "message": "Ledger details updated successfully"}
+        session.refresh(db_account)
         return db_account
     except Exception as e:
         session.rollback()
-        return {'status': "Error", "message": {str(e)}}
+        return {'status': "Error", "message": str(e)}
     finally:
         session.close()
 
@@ -107,6 +114,6 @@ def create_account_no() -> str:
             exists = session.query(Account).filter(Account.account_no == random_no).first()
 
             if not exists:
-                return random_no
+                return str(random_no)
     finally:
         session.close()

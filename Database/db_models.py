@@ -10,7 +10,7 @@ engine = create_engine("postgresql://postgres:asad888@127.0.0.1:5432/Bank Accoun
 class Account(Base):
     __tablename__ = "account"
     account_id = Column(Integer, primary_key=True)
-    account_no = Column(Integer, unique=True, nullable=False)
+    account_no = Column(String, unique=True, nullable=False)
     account_holder = Column(String(50), nullable=False)
     account_balance = Column(Float)
     account_pin = Column(String(4), nullable=False)

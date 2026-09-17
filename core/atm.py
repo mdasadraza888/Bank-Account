@@ -1,9 +1,10 @@
 from core.account import Accounts
 
+
 class Atm():
-    def __init__(self, atm_id, initial_amount = 50000.00):
-        self.atm_id = atm_id
-        self.machine_cash_inventory = initial_amount
+    def __init__(self, atm_id=None, initial_amount=50000.00, machine_id=None, machine_cash_inventory=None):
+        self.atm_id = atm_id if atm_id is not None else machine_id
+        self.machine_cash_inventory = machine_cash_inventory if machine_cash_inventory is not None else initial_amount
         self.current_session_account = None
 
     def authenticate_user(self, account_obj: Accounts, entered_pin: str) -> bool:
@@ -16,7 +17,6 @@ class Atm():
         return False
 
     def process_withdraw(self, amount: float, pin: str) -> str:
-
         if not self.current_session_account:
             return "Error, no active card detected."
         if amount > self.machine_cash_inventory:
@@ -26,12 +26,7 @@ class Atm():
 
         try:
             receipt_msg = self.current_session_account.withdraw(amount=amount, pin=pin)
-
             self.machine_cash_inventory -= amount
             return f"Dispensing cash... \n{receipt_msg}"
         except ValueError as e:
             return f"Transaction Failed: {str(e)}"
-
-    def logout(self) -> None:
-        if self.current_session_account:
-            self.current_session_account = None
