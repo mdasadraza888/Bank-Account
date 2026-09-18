@@ -10,10 +10,8 @@ class Atm():
     def authenticate_user(self, account_obj: Accounts, entered_pin: str) -> bool:
         if account_obj.account_pin == entered_pin:
             self.current_session_account = account_obj
-            print(f"Session started for {self.current_session_account}")
             return True
 
-        print("Authentication failed! invalid pin!")
         return False
 
     def process_withdraw(self, amount: float, pin: str) -> str:
@@ -30,3 +28,7 @@ class Atm():
             return f"Dispensing cash... \n{receipt_msg}"
         except ValueError as e:
             return f"Transaction Failed: {str(e)}"
+
+    def logout(self):
+        if self.current_session_account:
+            self.current_session_account = None

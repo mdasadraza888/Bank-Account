@@ -34,12 +34,14 @@ class Accounts(ABC):
     def withdraw(self, amount, pin):
         pass
 
-    def deposit(self, amount, pin) -> None:
+    def deposit(self, amount, pin) -> dict:
         if pin != self.account_pin:
             raise ValueError("Incorrect PIN")
         if amount <= 0:
             raise ValueError("Deposit amount must be positive")
         self._change_balance(amount)
+
+        return f"Deposited ${amount}, Balance: {self.get_balance()}"
 
     @property
     def account_pin(self) -> str:

@@ -22,4 +22,4 @@ class CheckingAccount(Accounts):
             raise ValueError("Insufficient funds, including overdraft limit")
 
         super()._change_balance(-amount)
-        return f"Withdrew ${amount}. Balance: ${super().get_balance()}"
+        return f"Withdraw ${amount}. Balance: ${super().get_balance()}"

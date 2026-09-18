@@ -25,7 +25,14 @@ class AccountRequest(BaseModel):
     account_balance: float = Field(..., gt=0)
     account_pin: str = Field(..., min_length=4, max_length=4)
     account_type: AccountType
-    company_name: Optional[str]
+
+class AccountBusinessRequest(BaseModel):
+    account_holder: str
+    account_balance: float = Field(..., gt=0)
+    account_pin: str = Field(..., min_length=4, max_length=4)
+    account_type: AccountType
+    company_name: Optional[str] = None
+
 
 class TransactionRequest(BaseModel):
     account_no: str
@@ -69,11 +76,32 @@ async def create_account(account: AccountRequest) -> AccountResponse:
         account_holder=account.account_holder, 
         account_balance=account.account_balance, 
         account_pin=account.account_pin, 
+        account_type=account.account_type
+    )
+
+    if db_result.get("status") == "Error":
+        raise HTTPException(status_code=404, detail=db_result.get("message"))
+
+    return {
+        "account_no": gen_account_no,
+        "account_holder": account.account_holder,
+        "account_type": account.account_type
+    }
+
+@app.post("/create-business-account", response_model=AccountResponse)
+async def create_business_account(account: AccountBusinessRequest) -> AccountResponse:
+    gen_account_no = create_account_no()
+
+    db_result = insert_func(
+        account_no=gen_account_no,
+        account_holder=account.account_holder,
+        account_balance=account.account_balance,
+        account_pin=account.account_pin,
         account_type=account.account_type,
         company_name=account.company_name
     )
 
-    if db_result.get("status") == "Error":
+    if db_result.get("status") == 'Error':
         raise HTTPException(status_code=404, detail=db_result.get("message"))
 
     return {
@@ -136,27 +164,27 @@ async def process_api_withdrawal(payload: TransactionRequest) -> TransactionResp
 
         if db_record.account_type == 'checking':
             active_logic_object=CheckingAccount(
-                account_no = db_record.account_no,
+                account_number=db_record.account_no,
                 account_holder=db_record.account_holder,
-                account_balance=db_record.account_balance,
-                account_pin=db_record.account_pin,
+                balance=db_record.account_balance,
+                pin=db_record.account_pin,
                 account_type=db_record.account_type,
                 overdraft_limit=getattr(db_record, 'overdraft_value', 500.00)
             )
         elif db_record.account_type == 'savings':
             active_logic_object=SavingAccount(
-                account_no=db_record.account_no,
+                account_number=db_record.account_no,
                 account_holder=db_record.account_holder,
-                account_balance=db_record.account_balance,
-                account_pin=db_record.account_pin,
+                balance=db_record.account_balance,
+                pin=db_record.account_pin,
                 account_type=db_record.account_type
             )
         elif db_record.account_type == 'business':
             active_logic_object=BusinessAcoount(
-                account_no=db_record.account_no,
+                account_number=db_record.account_no,
                 account_holder=db_record.account_holder,
-                account_balance=db_record.account_balance,
-                account_pin=db_record.account_pin,
+                balance=db_record.account_balance,
+                pin=db_record.account_pin,
                 account_type=db_record.account_type,
                 company_name=getattr(db_record, 'company_name', 'Commercial LLC')
             )
@@ -182,7 +210,7 @@ async def process_api_withdrawal(payload: TransactionRequest) -> TransactionResp
         session.close()
 
 @app.patch("/account/deposit/")
-async def process_api_deposit(payload: TransactionRequest) -> str:
+async def process_api_deposit(payload: TransactionRequest) -> dict:
     session = SessionLocal()
     try:
         db_account = session.query(Account).filter(Account.account_no == payload.account_no).first()
@@ -235,22 +263,24 @@ async def process_api_deposit(payload: TransactionRequest) -> str:
         session.close()
 
 @app.get("/account/{account_no}/balance")
-async def retrieve_account_balance(account_no: str) -> float:
+async def retrieve_account_balance(account_no: str) -> dict:
 
     db_account = get_account(account_no=account_no)
 
     if not db_account:
         raise HTTPException(status_code=404, detail="Account not founded.")
 
-    return db_account.account_balance
+    return {'status': "success", "message": f"Balance: {db_account.account_balance}"}
 
 
-@app.post("/ATM/withdraw/", response_model=AtmTransactionResponse)
+@app.post("/ATM/withdraw", response_model=AtmTransactionResponse)
 async def withdraw_money(payload: AtmWithdrawRequest) -> AtmTransactionResponse:
     session = SessionLocal()
     hardware_atm = None
     try:
-        db_account = get_account(account_no=payload.account_no)
+        db_account = session.query(Account).filter(
+            Account.account_no == payload.account_no
+        ).first()
 
         if not db_account:
             raise HTTPException(status_code=404, detail="Account does not exist")
@@ -298,8 +328,8 @@ async def withdraw_money(payload: AtmWithdrawRequest) -> AtmTransactionResponse:
             raise HTTPException(status_code=404, detail=receipt_msg)
 
         db_account.account_balance = active_account_logic.get_balance()
-        session.add(db_account)
         session.commit()
+        session.refresh(db_account)
 
         return {
             "status": "success",

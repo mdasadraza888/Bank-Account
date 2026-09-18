@@ -7,7 +7,7 @@ engine = create_engine("postgresql://postgres:asad888@127.0.0.1:5432/Bank Accoun
 
 SessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=engine)
 
-def insert_func(account_no: str, account_holder: str, account_balance: float, account_pin: str, account_type: str, company_name: str):
+def insert_func(account_no: str, account_holder: str, account_balance: float, account_pin: str, account_type: str, company_name: str = None):
     session = SessionLocal()
 
     target_type = account_type.strip().lower()
