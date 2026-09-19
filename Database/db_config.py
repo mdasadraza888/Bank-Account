@@ -3,7 +3,6 @@ from sqlalchemy.orm import sessionmaker
 from Database.db_models import Base, Account, SavingAccount, CheckingAccount, BusinessAccount
 import random
 
-engine = create_engine("postgresql://postgres:asad888@127.0.0.1:5432/Bank Account")
 
 SessionLocal = sessionmaker(autoflush=False, autocommit=False, bind=engine)
 

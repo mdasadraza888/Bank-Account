@@ -5,7 +5,6 @@ from sqlalchemy import insert, update, delete, select
 
 Base = declarative_base()
 
-engine = create_engine("postgresql://postgres:asad888@127.0.0.1:5432/Bank Account")
 
 class Account(Base):
     __tablename__ = "account"
